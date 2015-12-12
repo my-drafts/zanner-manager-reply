@@ -1,6 +1,6 @@
 {
   "name": "zanner-manager-reply",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "reply manager",
   "main": "index.js",
   "directories": {
@@ -20,5 +20,14 @@
     "util": "^0.10.3",
     "zanner-logger": "^1.0.4",
     "zanner-typeof": "^1.0.4"
-  }
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sergej-kucharev/zanner-manager-reply.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sergej-kucharev/zanner-manager-reply/issues"
+  },
+  "homepage": "https://github.com/sergej-kucharev/zanner-manager-reply#readme"
 }
