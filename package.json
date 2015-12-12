@@ -1,0 +1,24 @@
+{
+  "name": "zanner-manager-reply",
+  "version": "1.0.0",
+  "description": "reply manager",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "test/index.js"
+  },
+  "keywords": [
+    "reply",
+    "manager"
+  ],
+  "author": "Sergey Kukharev",
+  "license": "ISC",
+  "dependencies": {
+    "url": "^0.11.0",
+    "util": "^0.10.3",
+    "zanner-logger": "^1.0.4",
+    "zanner-typeof": "^1.0.4"
+  }
+}
