@@ -105,9 +105,10 @@ var replyMatchLLike = function(_match, _value){
 	});
 };
 
-var REPLY_PRIORITY = 2;
 var replyMatch = function(_match, _z, _request){
 	switch(of(_match)){
+		case 'undefined':
+			break;
 		case 'array':
 			if(_match.length!=2){
 				var result = false;
@@ -129,126 +130,81 @@ var replyMatch = function(_match, _z, _request){
 			else if(of(_match[0], 'number') && of(match[1], 'regexp')){
 				return replyMatch({path:_match[1], priority:_match[0]}, _z, _request);
 			}
-			else{
-				return replyMatch([undefined].concat(_match), _z, _request);
+			return replyMatch([undefined].concat(_match), _z, _request);
+		case 'object':
+			var requestMethod = _request.method.toLowerCase();
+			if('method' in _match){
+				if(!replyMatchEqual(_match.method, requestMethod)) break;
 			}
+			else if('m' in _match){
+				if(!replyMatchEqual(_match.m, requestMethod)) break;
+			}
+			var requestHost = pu(_request).hostname;
+			if('host' in _match){
+				if(!replyMatchEqual(_match.host, requestHost)) break;
+			}
+			else if('h' in _match){
+				if(!replyMatchEqual(_match.h, requestHost)) break;
+			}
+			var priority = ('priority' in _match) ? _match.priority : ('pp' in _match) ? match.pp : undefined;
+			var requestPath = of(_z, 'object') && of(_z.path, 'function') ? _z.path() : pu(_request).pathname;
+			if('path' in _match){
+				if(!replyMatchLLike(_match.path, requestPath)) break;
+				_match = _match.path;
+			}
+			else if('p' in _match){
+				if(!replyMatchLLike(_match.p, requestPath)) break;
+				_match = _match.p;
+			}
+			else _match = undefined;
+			return replyMatchReturn('object', _match, requestPath, priority);
 		case 'regexp':
 			var requestPath = of(_z, 'object') && of(_z.path, 'function') ? _z.path() : pu(_request).pathname;
-			var matched = _match.exec(requestPath), priority = 1./REPLY_PRIORITY++;
-			return matched && matched.index==0 ? replyMatchReturn('regexp', matched[0], requestPath, priority) : false;
+			var matched = _match.exec(requestPath);
+			return matched && matched.index==0 ? replyMatchReturn('regexp', matched[0], requestPath) : false;
 		case 'string':
-			return replyMatchString(_match, _z, _request);
-		case 'object':
-			return replyMatchObject(_match, _request);
+			var requestPath = of(_z, 'object') && of(_z.path, 'function') ? _z.path() : pu(_request).pathname;
+			// 0.8::get://host1.host2.host3.host4/path1/path2/path3/path4
+			var RE = /^(?:([\.\d]+)[\:]{2})?(?:([\w]+|[\*])[\:])?(?:[\/]{2}([\w\d\:\.\_\-]+|[\*]))?(?:[\/]{1}([^\/]+(?:[\/][^\/]+)*|[\*])?)?$/i;
+			if(_match==='') break;
+			else if(_match==='*') return replyMatchReturn('any', requestPath, requestPath);
+			else if(_match===requestPath) return replyMatchReturn('string', _match, requestPath);
+			else if(false && requestPath.indexOf(_match, 0)==0) return replyMatchReturn('string-like', _match, requestPath);
+			else if(RE.test(_match)){
+				var m = RE.exec(_match);
+				var matched = {};
+				if(m[1]) matched.priority = parseFloat(m[1]);
+				if(m[2]) matched.method = m[2].toLowerCase();
+				if(m[3]) matched.host = m[3];
+				if(m[4]) matched.path = m[4]==='*' ? '*' : '/' + m[4];
+				return replyMatch(matched, _z, _request);
+			}
+			break;
 	}
 	return false;
 };
 
-
-
-var replyMatchString = function(_match, _z, _request){
-	var requestPath = of(_z, 'object') && of(_z.path, 'function') ? _z.path() : pu(_request).pathname;
-	// 0.8::get://host1.host2.host3.host4/path1/path2/path3/path4
-	var RE = /^(?:([\.\d]+)[\:]{2})?(?:([\w]+|[\*])[\:])?(?:[\/]{2}([\w\.\_\-]+|[\*]))?[\/]{1}([^\/]+(?:[\/][^\/]+)*|[\*])?$/i;
-	if(_match===requestPath){
-		return replyMatchReturn('string', _match, requestPath, 1);
+var REPLY_PRIORITY = 2;
+var replyMatchReturn = function(_caller, _match, _pattern, _priority){
+	if(!of(_match, 'string') || !of(_pattern, 'string')){
+		return false;
 	}
-	else if(_match==='*'){
-		return replyMatchReturn('any', requestPath, requestPath, undefined);
-	}
-	else if(false && requestPath.indexOf(match, 0)==0){
-		return replyMatchReturn('string-like', match, requestPath, undefined);
-	}
-	else if(RE.test(match)){
-		var m = RE.exec(match);
-		var matched = {};
-		if(m[1]) matched.priority = m[1];
-		if(m[2]) matched.method = m[2];
-		if(m[3]) matched.host = m[3];
-		if(m[4]) matched.path = m[4]=='*' ? '*' : '/' + m[4];
-		return replyMatch(matched, _z, _request);
-	}
-	return replyMatchReturn('none', '', 0);
-};
-
-var replyMatchReturn = function(how, match, pattern, priority){
-	if(!of(match, 'string')){
-		return { rate: 0, priority: 0, match: '' };
-	}
-	else if(of(priority, 'number') && Number.isFinite(priority)){
-		return { rate: match.length, priority: priority, match: match };
-	}
-	var p = parseFloat(priority);
-	if(Number.isFinite(p)){
-		return { rate: match.length, priority: p, match: match };
-	}
-	else if(typeOf(pattern, 'string')){
-		switch(how){
-			case 'any':
-				return { rate: 0, priority: 1, match: match };
-			case 'regexp':
-			case 'string':
-			case 'object':
-				return { rate: match.length, priority: match.length/pattern.length, match: match };
-			case 'string-like':
-				return { rate: 0, priority: match.length/pattern.length, match: match };
-		}
-	}
-	return {rate: 0, priority: 0, match: match };
-};
-
-var replyMatchObject = function(match, request){
-	var rm = typeOf(request.z,'object') && typeOf(request.z.URL,'object') ? request.z.URL : meta(request);
-	var pn = typeOf(request.z,'object') && typeOf(request.z.path,'function') ? request.z.path() : meta(request).pathname;
-	if(('method' in match) && !replyMatchObjectEqual(match.method, rm.method))
-		return replyMatchReturn('none', '', 0);
-	if(('m' in match) && !replyMatchObjectEqual(match.m, rm.method))
-		return replyMatchReturn('none', '', 0);
-	if(('host' in match) && !replyMatchObjectEqual(match.host, rm.hostname))
-		return replyMatchReturn('none', '', 0);
-	if(('h' in match) && !replyMatchObjectEqual(match.h, rm.hostname))
-		return replyMatchReturn('none', '', 0);
-	var value = '';
-	if(('path' in match) && !!match.path){
-		value = replyMatchObjectLLike(match.path, pn); // _oneMatchObjectLLike
-		if(value==false) return replyMatchReturn('none', '', 0);
-		else if(value==true) value = match.path;
-	}
-	else if(('p' in match) && !!match.p){
-		value = replyMatchObjectLLike(match.p, pn); // _oneMatchObjectLLike
-		if(value==false) return replyMatchReturn('none', '', 0);
-		else if(value==true) value = match.path;
-	}
-	var priority;
-	if(('priority' in match) && !!match.priority) priority = match.priority;
-	else if(('pp' in match) && !!match.pp) priority = match.pp;
-	return replyMatchReturn('object', value, priority, pn);
-};
-
-var replyMatchObjectEqual = function(match, value){
-	if(match=='*') return true;
-	switch(typeOf(match)){
-		case 'array':
-			if(!match.find(function(m){return (m=='*')||(m==value);})) return false;
+	switch(_caller){
+		case 'any':
+			return { match: _match, rate: 0, priority: 1 };
 		case 'regexp':
-			if(!match.test(value)) return false;
-			return match.exec(value)[0];
+			return { match: _match, rate: _match.length, priority: 1./REPLY_PRIORITY++ };
 		case 'string':
-			if(!(match==value)) return false;
+			return { match: _match, rate: _match.length, priority: _match.length/_pattern.length };
+		case 'object':
+			if(of(_priority, 'number') && Number.isFinite(_priority)){
+				return { match: _match, rate: _match.length, priority: _priority };
+			}
+			else{
+				return { match: _match, rate: _match.length, priority: _match.length/_pattern.length };
+			}
+		case 'string-like':
+			return { match: _match, rate: _match.length, priority: match.length/pattern.length };
 	}
-	return true;
-};
-
-var replyMatchObjectLLike = function(match, value){
-	if(match=='*') return true;
-	switch(typeOf(match)){
-		case 'array':
-			if(!match.find(function(m){return (m=='*')||(value.indexOf(m, 0)==0);})) return false;
-		case 'regexp':
-			if(!match.test(value)) return false;
-			return match.exec(value)[0];
-		case 'string':
-			if(!(value.indexOf(match, 0)==0)) return false;
-	}
-	return true;
+	return false;
 };
