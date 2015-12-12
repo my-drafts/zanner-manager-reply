@@ -1,6 +1,6 @@
 {
   "name": "zanner-manager-reply",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "reply manager",
   "main": "index.js",
   "directories": {
